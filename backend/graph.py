@@ -1,0 +1,157 @@
+# backend/graph.py
+
+from langgraph.graph import StateGraph
+from typing import TypedDict
+import json
+
+from .agents.query_analysis import query_analysis_agent
+from .agents.planner import osint_planning_agent
+from .agents.retrieval.google_news import google_news_retrieval
+from .agents.pivot import pivot_agent
+from .agents.synthesis import synthesis_agent
+from .database import save_investigation
+
+
+# Define the shared state schema for LangGraph
+class GraphState(TypedDict):
+    input: str
+    parsed_query: dict
+    task_plan: dict
+    retrieved_chunks: list
+    pivot_insights: dict
+    retrieval_log: list
+    final_report: str
+
+# Node 1: Query Analysis
+
+def query_node(state: GraphState) -> dict:
+    parsed = query_analysis_agent(state["input"])
+    print("\n📤 DEBUG: Raw Claude response:", parsed)
+
+    if parsed.strip().startswith("```json"):
+        parsed = parsed.strip().removeprefix("```json").removesuffix("```")
+
+    parsed = parsed.strip()
+    print("🧪 Cleaned Claude response:\n", parsed)
+
+    if not parsed or not parsed.startswith("{"):
+        raise ValueError("query_analysis_agent returned invalid or empty response")
+
+    return {"parsed_query": json.loads(parsed)}
+
+# Node 2: Planning
+
+def planner_node(state: GraphState) -> dict:
+    parsed_query = state["parsed_query"]
+    plan = osint_planning_agent(parsed_query)
+    print("🧭 DEBUG: Raw Plan Output:", repr(plan))
+
+    if plan.startswith("```"):
+        plan = plan.strip("`").strip()
+        if "\n" in plan:
+            plan = plan.split("\n", 1)[1]
+        if plan.endswith("```"):
+            plan = plan.rsplit("```,", 1)[0]
+
+    print("🧪 Cleaned Plan Output:\n", plan)
+
+    if not plan or not plan.strip().startswith("{"):
+        raise ValueError("osint_planning_agent returned invalid or empty response")
+
+    return {"task_plan": json.loads(plan)}
+
+# Node 3: Retrieval
+
+def retriever_node(state: GraphState) -> dict:
+    entity = state["parsed_query"]["entity"]
+    results = google_news_retrieval(entity)
+
+    retrieval_log = [
+        {
+            "source": "Google News",
+            "query": entity,
+            "num_results": len(results)
+        }
+    ]
+    return {
+        "retrieved_chunks": results,
+        "retrieval_log": retrieval_log
+    }
+
+# Node 4: Pivoting
+
+def pivot_node(state: GraphState) -> dict:
+    insights_raw = pivot_agent(state["retrieved_chunks"], state["parsed_query"]["entity"])
+    print("\n🧠 Pivot Agent Output:\n", insights_raw)
+
+    insights = insights_raw.strip()
+    if insights.startswith("```json"):
+        insights = insights.removeprefix("```json").removesuffix("```").strip()
+
+
+    try:
+        parsed = json.loads(insights)
+    except json.JSONDecodeError as e:
+        print("❌ Failed to parse pivot agent output:", e)
+        raise ValueError("pivot_agent returned invalid JSON")
+
+    return {"pivot_insights": parsed}
+
+# Node 5: Synthesis
+
+def synthesis_node(state: GraphState) -> dict:
+    report = synthesis_agent(
+        entity=state["parsed_query"]["entity"],
+        plan=state["task_plan"],
+        articles=state["retrieved_chunks"],
+        pivots=state["pivot_insights"]
+    )
+    print("\n📄 Final Report Generated.\n")
+
+    # ✅ Save results to DB
+    save_investigation({
+        **state,
+        "final_report": report
+    })
+
+    return {"final_report": report}
+
+# Build LangGraph pipeline
+
+async def build_langgraph(query: str):
+    builder = StateGraph(GraphState)
+
+    builder.add_node("QueryAnalysis", query_node)
+    builder.add_node("Planner", planner_node)
+    builder.add_node("Retriever", retriever_node)
+    builder.add_node("Pivot", pivot_node)
+    builder.add_node("Synthesis", synthesis_node)
+
+    builder.set_entry_point("QueryAnalysis")
+    builder.add_edge("QueryAnalysis", "Planner")
+    builder.add_edge("Planner", "Retriever")
+    builder.add_edge("Retriever", "Pivot")
+    builder.add_edge("Pivot", "Synthesis")
+
+    builder.set_finish_point("Synthesis")
+
+    graph = builder.compile()
+    result = await graph.ainvoke({"input": query})
+    return result
+
+
+# Run if executed directly
+if __name__ == "__main__":
+    import asyncio
+
+    query = "Investigate Ali Khaledi Nasab’s social and professional background across public records."
+    result = asyncio.run(build_langgraph(query))
+
+    print("\n🎯 Final Graph State:\n")
+    for key, val in result.items():
+        print(f"--- {key.upper()} ---")
+        if isinstance(val, (dict, list)):
+            print(json.dumps(val, indent=2), "\n")
+        else:
+            print(val, "\n")
+
