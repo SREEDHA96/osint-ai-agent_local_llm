@@ -4,9 +4,11 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+from backend.agents.evaluator import evaluate_report
+from .llm_judge import call_claude_opus
 
 from .graph import build_langgraph
-from .database import get_all_investigations
+from .database import insert_investigation, get_all_investigations 
 
 app = FastAPI()
 
@@ -30,11 +32,15 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:5177",  
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ✅ Query request model
 class QueryRequest(BaseModel):
@@ -44,8 +50,22 @@ class QueryRequest(BaseModel):
 @app.post("/query")
 async def query_osint(req: QueryRequest):
     try:
+        # Run LangGraph OSINT pipeline
         final_state = await build_langgraph(req.query)
-        return {"report": final_state.get("final_report", "No report generated.")}
+        report = final_state.get("final_report", "No report generated.")
+
+        # Call Claude Opus judge
+        evaluation = await call_claude_opus(report)
+
+        # Store in DB
+        inv = insert_investigation(
+            query=req.query,
+            final_report=report,
+            evaluation=evaluation
+        )
+
+        return {"report": report, "evaluation": evaluation}
+
     except Exception as e:
         return {"report": f"Error: {str(e)}"}
 

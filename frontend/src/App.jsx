@@ -4,6 +4,7 @@ import './App.css';
 function App() {
   const [query, setQuery] = useState('');
   const [report, setReport] = useState('');
+  const [evaluation, setEvaluation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
 
@@ -20,6 +21,7 @@ function App() {
     if (!query.trim()) return;
     setLoading(true);
     setReport('');
+    setEvaluation(null);
     try {
       const response = await fetch('http://localhost:8000/query', {
         method: 'POST',
@@ -31,6 +33,7 @@ function App() {
 
       const data = await response.json();
       setReport(data.report);
+      setEvaluation(data.evaluation || null);
       setHistory([{ query, timestamp: new Date().toISOString() }, ...history.slice(0, 9)]);
     } catch (err) {
       setReport(`Error: ${err.message}`);
@@ -88,6 +91,20 @@ function App() {
           <button className="button download-button" onClick={downloadReport}>
             Download Report
           </button>
+        </div>
+      )}
+
+      {evaluation && (
+        <div className="evaluation">
+          <h2>Evaluation Results</h2>
+          <ul>
+            <li><strong>Score:</strong> {evaluation.score}</li>
+            <li><strong>Accuracy:</strong> {evaluation.accuracy}</li>
+            <li><strong>Coherence:</strong> {evaluation.coherence}</li>
+            <li><strong>Completeness:</strong> {evaluation.completeness}</li>
+            <li><strong>Reliability:</strong> {evaluation.reliability}</li>
+            <li><strong>Verdict:</strong> {evaluation.verdict}</li>
+          </ul>
         </div>
       )}
 
