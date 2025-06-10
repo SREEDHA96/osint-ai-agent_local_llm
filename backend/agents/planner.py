@@ -1,26 +1,7 @@
-# backend/agents/planner.py
-
-from anthropic import Anthropic
-import os
-from dotenv import load_dotenv
+from backend.utils.ollama_wrapper import call_local_model
 import json
-from ..prompts.planner import PLANNER_SYSTEM_PROMPT
-
-
-
-load_dotenv()
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+from backend.prompts.planner import PLANNER_SYSTEM_PROMPT
 
 def osint_planning_agent(parsed_json: dict) -> str:
-    response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        system=PLANNER_SYSTEM_PROMPT.strip(),
-        messages=[
-            {
-                "role": "user",
-                "content": json.dumps(parsed_json, indent=2)
-            }
-        ]
-    )
-    return response.content[0].text
+    prompt = f"{PLANNER_SYSTEM_PROMPT.strip()}\n\nParsed Query:\n{json.dumps(parsed_json, indent=2)}"
+    return call_local_model(prompt, model="mistral")
