@@ -89,12 +89,25 @@ def pivot_node(state: GraphState) -> dict:
             "new_queries": [],
             "inconsistencies": ["Failed to parse pivot output"],
             "notes": raw,
-        
-    print("🧠 Parsed Pivot Insights:\n", json.dumps(parsed, indent=2))
+        }
+        print("⚠️ Using fallback pivot structure due to parse error")
+        print("🧠 Parsed Pivot Insights:\n", json.dumps(parsed, indent=2))
+        return {"pivot_insights": parsed}
 
+    pivot_data = {}
+    for key, default in [
+        ("related_entities", []),
+        ("new_queries", []),
+        ("inconsistencies", []),
+        ("notes", ""),
+    ]:
+        if key not in parsed:
+            print(f"⚠️ Inserting default for missing '{key}'")
+        pivot_data[key] = parsed.get(key, default)
 
+    print("🧠 Parsed Pivot Insights:\n", json.dumps(pivot_data, indent=2))
 
-    return {"pivot_insights": parsed}
+    return {"pivot_insights": pivot_data}
 
 # Node 5: Synthesis
 
