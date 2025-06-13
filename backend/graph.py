@@ -91,9 +91,11 @@ def pivot_node(state: GraphState) -> dict:
             "notes": raw,
         }
 
+
     print("🧠 Parsed Pivot Insights:\n", json.dumps(parsed, indent=2))
 
     return {"pivot_insights": parsed}
+
 
 # Node 5: Synthesis
 
