@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import requests
+import traceback
 from backend.agents.evaluator import evaluate_report
 from .llm_judge import call_claude_opus
 
@@ -58,7 +60,7 @@ async def query_osint(req: QueryRequest):
         evaluation = await call_claude_opus(report)
 
         # Store in DB
-        inv = insert_investigation(
+        insert_investigation(
             query=req.query,
             final_report=report,
             evaluation=evaluation
@@ -66,9 +68,17 @@ async def query_osint(req: QueryRequest):
 
         return {"report": report, "evaluation": evaluation}
 
+    except requests.RequestException as e:
+        message = f"Network error: {e}".strip()
+        print("❌", message)
+        return {"error": {"message": message, "stage": "retrieval"}}
+    except ValueError as e:
+        message = f"Parsing error: {e}".strip()
+        print("❌", message)
+        return {"error": {"message": message, "stage": "parsing"}}
     except Exception as e:
-        print("❌ Query processing error:", e)
-        return {"report": f"Error: {str(e)}"}
+        print("❌ Unexpected error:\n", traceback.format_exc())
+        return {"error": {"message": str(e), "stage": "unknown"}}
 
 # ✅ Serve frontend (React build)
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

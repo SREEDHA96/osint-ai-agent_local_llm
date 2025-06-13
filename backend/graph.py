@@ -89,10 +89,9 @@ def pivot_node(state: GraphState) -> dict:
             "new_queries": [],
             "inconsistencies": ["Failed to parse pivot output"],
             "notes": raw,
-        
+        }
+
     print("🧠 Parsed Pivot Insights:\n", json.dumps(parsed, indent=2))
-
-
 
     return {"pivot_insights": parsed}
 
