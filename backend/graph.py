@@ -60,6 +60,7 @@ def planner_node(state: GraphState) -> dict:
 def retriever_node(state: GraphState) -> dict:
     entity = state["parsed_query"]["entity"]
     results = google_news_retrieval(entity)
+    print("\n🔎 Retrieved", len(results), "articles from Google News")
 
     retrieval_log = [
         {
@@ -88,13 +89,17 @@ def pivot_node(state: GraphState) -> dict:
             "new_queries": [],
             "inconsistencies": ["Failed to parse pivot output"],
             "notes": raw,
-        }
+        
+    print("🧠 Parsed Pivot Insights:\n", json.dumps(parsed, indent=2))
+
+
 
     return {"pivot_insights": parsed}
 
 # Node 5: Synthesis
 
 def synthesis_node(state: GraphState) -> dict:
+    print("\n🧩 Using Pivot Insights:\n", json.dumps(state["pivot_insights"], indent=2))
     report = synthesis_agent(
         entity=state["parsed_query"]["entity"],
         plan=state["task_plan"],
@@ -113,7 +118,8 @@ def synthesis_node(state: GraphState) -> dict:
 
 # Build LangGraph pipeline
 
-async def build_langgraph(query: str):
+def build_langgraph() -> StateGraph:
+    """Compile and return the LangGraph pipeline."""
     builder = StateGraph(GraphState)
 
     builder.add_node("QueryAnalysis", query_node)
@@ -131,8 +137,13 @@ async def build_langgraph(query: str):
     builder.set_finish_point("Synthesis")
 
     graph = builder.compile()
-    result = await graph.ainvoke({"input": query})
-    return result
+    return graph
+
+
+async def run_langgraph(query: str):
+    """Convenience helper to run the pipeline for a single query."""
+    graph = build_langgraph()
+    return await graph.ainvoke({"input": query})
 
 
 # Run if executed directly
@@ -140,7 +151,7 @@ if __name__ == "__main__":
     import asyncio
 
     query = "Investigate Ali Khaledi Nasab’s social and professional background across public records."
-    result = asyncio.run(build_langgraph(query))
+    result = asyncio.run(run_langgraph(query))
 
     print("\n🎯 Final Graph State:\n")
     for key, val in result.items():

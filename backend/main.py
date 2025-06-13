@@ -7,7 +7,7 @@ import os
 from backend.agents.evaluator import evaluate_report
 from .llm_judge import call_claude_opus
 
-from .graph import build_langgraph
+from .graph import run_langgraph
 from .database import insert_investigation, get_all_investigations 
 
 app = FastAPI()
@@ -51,7 +51,7 @@ class QueryRequest(BaseModel):
 async def query_osint(req: QueryRequest):
     try:
         # Run LangGraph OSINT pipeline
-        final_state = await build_langgraph(req.query)
+        final_state = await run_langgraph(req.query)
         report = final_state.get("final_report", "No report generated.")
 
         # Call Claude Opus judge
@@ -67,6 +67,7 @@ async def query_osint(req: QueryRequest):
         return {"report": report, "evaluation": evaluation}
 
     except Exception as e:
+        print("❌ Query processing error:", e)
         return {"report": f"Error: {str(e)}"}
 
 # ✅ Serve frontend (React build)

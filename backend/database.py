@@ -45,6 +45,7 @@ def save_investigation(state: dict):
         )
         db.add(inv)
         db.commit()
+        print("✅ Investigation saved to DB with id", inv.id)
     except Exception as e:
         print("❌ DB Save Error:", str(e))
         db.rollback()
@@ -68,6 +69,7 @@ def insert_investigation(query, final_report, evaluation):
         )
         db.add(inv)
         db.commit()
+        print("✅ Investigation with evaluation saved, id", inv.id)
         return inv
     except Exception as e:
         print("❌ Insert Error:", str(e))

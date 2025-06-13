@@ -25,8 +25,11 @@ Report:
 """
 
     try:
+        print("\n📝 Claude Judge Prompt:\n", prompt)
         result = call_local_model(prompt, model="phi3")
+        print("\n📊 Claude Judge Raw Response:\n", result)
         match = re.search(r"\{.*\}", result, re.DOTALL)
         return json.loads(match.group()) if match else {"score": 0, "verdict": "Invalid response"}
     except Exception as e:
+        print("❌ Claude judge error:", e)
         return {"score": 0, "verdict": str(e)}

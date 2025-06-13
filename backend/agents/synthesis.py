@@ -7,4 +7,5 @@ Plan: {json.dumps(plan, indent=2)}
 Articles: {json.dumps(articles, indent=2)}
 Pivot Insights: {json.dumps(pivots, indent=2)}
 """
+    print("\n📝 Synthesis Prompt:\n", prompt)
     return call_local_model(prompt, model="zephyr")
