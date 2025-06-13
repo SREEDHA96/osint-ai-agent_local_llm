@@ -67,6 +67,7 @@ async def query_osint(req: QueryRequest):
         return {"report": report, "evaluation": evaluation}
 
     except Exception as e:
+        print("❌ Query processing error:", e)
         return {"report": f"Error: {str(e)}"}
 
 # ✅ Serve frontend (React build)

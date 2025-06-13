@@ -12,6 +12,7 @@ def pivot_agent(articles: list, current_entity: str) -> str:
         }, indent=2)
 
     prompt = PIVOT_AGENT_PROMPT_TEMPLATE.format(entity=current_entity) + "\n\nArticles:\n" + json.dumps(articles, indent=2)
+    print("\n📝 Pivot Prompt:\n", prompt)
     try:
         return call_local_model(prompt, model="qwen:7b")
     except Exception as e:
