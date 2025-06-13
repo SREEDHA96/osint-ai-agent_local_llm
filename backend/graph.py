@@ -4,6 +4,8 @@ from langgraph.graph import StateGraph
 from typing import TypedDict
 import json
 
+from .utils.json_utils import extract_json
+
 from .agents.query_analysis import query_analysis_agent
 from .agents.planner import osint_planning_agent
 from .agents.retrieval.google_news import google_news_retrieval
@@ -25,40 +27,33 @@ class GraphState(TypedDict):
 # Node 1: Query Analysis
 
 def query_node(state: GraphState) -> dict:
-    parsed = query_analysis_agent(state["input"])
-    print("\n📤 DEBUG: Raw Claude response:", parsed)
+    raw = query_analysis_agent(state["input"])
+    print("\n📤 DEBUG: Raw Claude response:", raw)
 
-    if parsed.strip().startswith("```json"):
-        parsed = parsed.strip().removeprefix("```json").removesuffix("```")
+    try:
+        parsed = extract_json(raw)
+    except ValueError as e:
+        raise ValueError("query_analysis_agent returned invalid JSON") from e
 
-    parsed = parsed.strip()
-    print("🧪 Cleaned Claude response:\n", parsed)
+    print("🧪 Cleaned Claude response:\n", json.dumps(parsed, indent=2))
 
-    if not parsed or not parsed.startswith("{"):
-        raise ValueError("query_analysis_agent returned invalid or empty response")
-
-    return {"parsed_query": json.loads(parsed)}
+    return {"parsed_query": parsed}
 
 # Node 2: Planning
 
 def planner_node(state: GraphState) -> dict:
     parsed_query = state["parsed_query"]
-    plan = osint_planning_agent(parsed_query)
-    print("🧭 DEBUG: Raw Plan Output:", repr(plan))
+    raw = osint_planning_agent(parsed_query)
+    print("🧭 DEBUG: Raw Plan Output:", repr(raw))
 
-    if plan.startswith("```"):
-        plan = plan.strip("`").strip()
-        if "\n" in plan:
-            plan = plan.split("\n", 1)[1]
-        if plan.endswith("```"):
-            plan = plan.rsplit("```,", 1)[0]
+    try:
+        plan = extract_json(raw)
+    except ValueError as e:
+        raise ValueError("osint_planning_agent returned invalid JSON") from e
 
-    print("🧪 Cleaned Plan Output:\n", plan)
+    print("🧪 Cleaned Plan Output:\n", json.dumps(plan, indent=2))
 
-    if not plan or not plan.strip().startswith("{"):
-        raise ValueError("osint_planning_agent returned invalid or empty response")
-
-    return {"task_plan": json.loads(plan)}
+    return {"task_plan": plan}
 
 # Node 3: Retrieval
 
@@ -81,19 +76,19 @@ def retriever_node(state: GraphState) -> dict:
 # Node 4: Pivoting
 
 def pivot_node(state: GraphState) -> dict:
-    insights_raw = pivot_agent(state["retrieved_chunks"], state["parsed_query"]["entity"])
-    print("\n🧠 Pivot Agent Output:\n", insights_raw)
-
-    insights = insights_raw.strip()
-    if insights.startswith("```json"):
-        insights = insights.removeprefix("```json").removesuffix("```").strip()
-
+    raw = pivot_agent(state["retrieved_chunks"], state["parsed_query"]["entity"])
+    print("\n🧠 Pivot Agent Output:\n", raw)
 
     try:
-        parsed = json.loads(insights)
-    except json.JSONDecodeError as e:
+        parsed = extract_json(raw)
+    except ValueError as e:
         print("❌ Failed to parse pivot agent output:", e)
-        raise ValueError("pivot_agent returned invalid JSON")
+        parsed = {
+            "related_entities": [],
+            "new_queries": [],
+            "inconsistencies": ["Failed to parse pivot output"],
+            "notes": raw,
+        }
 
     return {"pivot_insights": parsed}
 
