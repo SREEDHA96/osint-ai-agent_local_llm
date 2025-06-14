@@ -12,12 +12,13 @@ You must:
 4. Summarize key pivot insights
 
 Respond strictly in the following JSON format:
-{
+{{
   "related_entities": [
-    { "name": "...", "relation": "...", "event": "..." }
+    {{ "name": "...", "relation": "...", "event": "..." }}
   ],
   "new_queries": ["...", "..."],
   "inconsistencies": ["..."],
   "notes": "..."
-}
+}}
 """
+

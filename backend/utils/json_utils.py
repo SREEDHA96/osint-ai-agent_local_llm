@@ -1,8 +1,9 @@
 import json
 import re
+from typing import List, Union, Optional
 
+def extract_json(text: str, required_keys: Optional[List[str]] = None):
 
-def extract_json(text: str, required_keys: list[str] | None = None):
     """Attempt to parse and return a JSON object from a model response.
 
     Strips common prefixes and trailing code fences, then validates that all
