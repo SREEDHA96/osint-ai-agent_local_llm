@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 osint_reports.db
 investigations.db
+.env
