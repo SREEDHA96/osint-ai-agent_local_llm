@@ -26,8 +26,8 @@
 ### 1. Clone the Repo
 
 ```bash
-git clone https://github.com/SREEDHA96/osint-ai-agent_new.git
-cd osint-ai-agent_new
+git clone https://github.com/SREEDHA96/osint-ai-agent_local_llm.git
+cd osint-ai-agent_local_llm
 ```
 
 ### 2. Set Up Environment
