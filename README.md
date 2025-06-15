@@ -62,11 +62,6 @@ npm run build
 cd ..
 uvicorn backend.main:app --reload
 ```
-This launches the FastAPI backend at:
-👉 http://127.0.0.1:8000
-
-The backend will automatically serve the built frontend UI.
-
 
 ### 6. Run a Sample Investigation (CLI Mode)
 To run the pipeline from the command line (no frontend):
